@@ -4,7 +4,7 @@ excerpt: "Learn how ref, out, and in parameters work in C#, when to use each one
 category: "C#"
 
 seo:
-  focusKeyword: "C# ref out in parameters"
+  focusKeyword: "C# ref out and in parameters"
   description: "Learn the differences between ref, out, and in parameters in C#, how each one behaves, and when to use them in real-world .NET code."
   socialTitle: "C# ref, out, and in Parameters: What's the Difference?"
   socialDescription: "Learn how ref, out, and in parameters differ in C# and when each one is appropriate in real-world .NET development."
@@ -61,7 +61,7 @@ This is the crucial distinction:
 
 Reference-type arguments are therefore **not automatically passed by reference**. By default, their references are passed by value.
 
-When a parameter uses `ref`, `out`, or `in`, the callee operates through a managed reference to the caller's storage. The modifier controls what the callee may do through that reference.
+When a parameter uses `ref`, `out`, or `in`, the callee operates through a managed reference to the caller's storage. The modifier controls what the callee may do through that reference. [Microsoft's C# method-parameter documentation](https://learn.microsoft.com/en-us/dotnet/csharp/language-reference/keywords/method-parameters) provides the complete language reference for these modifiers.
 
 ## `ref` Parameters
 
