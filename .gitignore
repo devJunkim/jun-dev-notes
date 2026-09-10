@@ -1,0 +1,29 @@
+# .NET build output
+bin/
+obj/
+
+# Visual Studio / VS Code
+.vs/
+.vscode/
+*.user
+*.suo
+
+# JetBrains Rider
+.idea/
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Local environment / secrets
+.env
+.env.*
+secrets.json
+
+# Temporary files
+*.tmp
+*.temp
+*.log
+
+# Generated WordPress HTML
+*.wordpress.html
