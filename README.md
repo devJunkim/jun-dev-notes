@@ -74,6 +74,19 @@ Render-only mode:
 - Makes no WordPress request.
 - Does not require credentials, a post ID, or a WordPress URL.
 
+### Creating a new article file
+
+Create a Markdown scaffold at a requested path with:
+
+```powershell
+dotnet run --project tools/JunDevNotes.Publisher -- --new posts/csharp/my-new-article.md
+```
+
+The command creates missing parent directories and writes the standard empty
+front matter plus an `# Article Title` heading as UTF-8 without a BOM. It
+prints the new file's full path, requires no WordPress credentials, and makes
+no WordPress request. It refuses to overwrite an existing file.
+
 ### WordPress credentials
 
 Normal publishing requires these environment variables:

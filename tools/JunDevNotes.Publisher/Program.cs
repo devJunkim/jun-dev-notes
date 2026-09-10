@@ -2,17 +2,85 @@ using System.Text;
 using JunDevNotes.Publisher.Markdown;
 using JunDevNotes.Publisher.WordPress;
 
-var renderOnly = args.Length == 2 &&
+var renderOnlyRequested = args.Length > 0 &&
     string.Equals(args[0], "--render-only", StringComparison.OrdinalIgnoreCase);
+var newArticleRequested = args.Length > 0 &&
+    string.Equals(args[0], "--new", StringComparison.OrdinalIgnoreCase);
+var renderOnly = renderOnlyRequested && args.Length == 2;
+var newArticle = newArticleRequested && args.Length == 2;
 
-if (!renderOnly && args.Length is not (2 or 3))
+if ((renderOnlyRequested && !renderOnly) ||
+    (newArticleRequested && !newArticle) ||
+    (!renderOnlyRequested && !newArticleRequested && args.Length is not (2 or 3)))
 {
     Console.Error.WriteLine(
         "Usage:\n" +
+        "  JunDevNotes.Publisher --new <markdown-path>\n" +
         "  JunDevNotes.Publisher --render-only <markdown-path>\n" +
         "  JunDevNotes.Publisher <markdown-path> <wordpress-base-url>\n" +
         "  JunDevNotes.Publisher <markdown-path> <post-id> <wordpress-base-url>");
     return 1;
+}
+
+if (newArticle)
+{
+    try
+    {
+        var fullPath = Path.GetFullPath(args[1]);
+        if (File.Exists(fullPath))
+        {
+            Console.Error.WriteLine(
+                $"Cannot create article because the file already exists: {fullPath}");
+            return 1;
+        }
+
+        var parentDirectory = Path.GetDirectoryName(fullPath);
+        if (!string.IsNullOrEmpty(parentDirectory))
+        {
+            Directory.CreateDirectory(parentDirectory);
+        }
+
+        var template = string.Join(
+            Environment.NewLine,
+            [
+                "---",
+                "title: \"\"",
+                "excerpt: \"\"",
+                "category: \"\"",
+                "",
+                "seo:",
+                "  focusKeyword: \"\"",
+                "  description: \"\"",
+                "  socialTitle: \"\"",
+                "  socialDescription: \"\"",
+                "---",
+                "",
+                "# Article Title",
+                ""
+            ]);
+
+        using var stream = new FileStream(
+            fullPath,
+            FileMode.CreateNew,
+            FileAccess.Write,
+            FileShare.None);
+        using var writer = new StreamWriter(stream, new UTF8Encoding(false));
+        writer.Write(template);
+
+        Console.WriteLine($"New article created: {fullPath}");
+        return 0;
+    }
+    catch (IOException) when (File.Exists(Path.GetFullPath(args[1])))
+    {
+        Console.Error.WriteLine(
+            $"Cannot create article because the file already exists: {Path.GetFullPath(args[1])}");
+        return 1;
+    }
+    catch (Exception exception)
+    {
+        Console.Error.WriteLine($"Could not create article: {exception.Message}");
+        return 1;
+    }
 }
 
 var markdownPath = renderOnly ? args[1] : args[0];
