@@ -12,7 +12,7 @@ before they are sent to WordPress.
 `tools/JunDevNotes.Publisher` is a .NET console application that reads a
 Markdown article, parses its YAML front matter, converts its body to native
 Gutenberg block markup, and updates an existing WordPress post through the
-WordPress REST API.
+WordPress REST API. It can create a new draft or update an existing draft.
 
 Markdown is decoded with strict UTF-8 validation. Invalid UTF-8 input fails
 instead of silently replacing or corrupting characters. The renderer emits
@@ -85,9 +85,24 @@ Normal publishing requires these environment variables:
 Do not commit either value. In PowerShell, set them for the current terminal
 session as `$env:WP_USERNAME` and `$env:WP_APP_PASSWORD`.
 
-### Updating an existing draft
+### Creating or updating a draft
 
-Command format:
+Create a new draft by omitting the post ID:
+
+```powershell
+dotnet run --project <project-path> -- <markdown-path> <wordpress-base-url>
+```
+
+Example:
+
+```powershell
+dotnet run --project tools/JunDevNotes.Publisher -- posts/csharp/value-types-vs-reference-types.md https://dev.jun-kim.net
+```
+
+This sends the article to `/wp-json/wp/v2/posts` and prints the new WordPress
+post ID after the response is verified.
+
+Update an existing draft by supplying its post ID:
 
 ```powershell
 dotnet run --project <project-path> -- <markdown-path> <post-id> <wordpress-base-url>
@@ -99,16 +114,18 @@ Example:
 dotnet run --project tools/JunDevNotes.Publisher -- posts/csharp/value-types-vs-reference-types.md 32 https://dev.jun-kim.net
 ```
 
-Normal publishing currently:
+This sends the article to `/wp-json/wp/v2/posts/{post-id}` and verifies that
+the response refers to the same post ID.
 
-- Updates an existing WordPress post only.
+Both commands:
+
 - Resolves the category by exact name and fails if it cannot find one exact
   match.
 - Sends the Gutenberg content, title, excerpt, resolved category ID, and
   SiteSEO metadata.
 - Always forces `status = "draft"`.
 - Never automatically publishes a post.
-- Does not create posts or categories.
+- Never creates categories automatically.
 
 Review the resulting draft in WordPress and publish it manually when it is
 ready.
@@ -130,7 +147,7 @@ these four values is missing or blank.
 
 ### Post-save verification
 
-After WordPress accepts an update, the publisher compares the response with
+After WordPress accepts a create or update request, the publisher compares the response with
 the values sent. It verifies:
 
 - Post ID.

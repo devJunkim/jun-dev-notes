@@ -74,32 +74,45 @@ public sealed class WordPressClient
                 "The WordPress post ID must be a positive integer.");
         }
 
-        ArgumentNullException.ThrowIfNull(content);
-        if (string.IsNullOrWhiteSpace(title))
-        {
-            throw new ArgumentException(
-                "A non-blank title from Markdown front matter is required for publishing.",
-                nameof(title));
-        }
-        if (categoryId <= 0)
-        {
-            throw new ArgumentOutOfRangeException(
-                nameof(categoryId),
-                categoryId,
-                "The WordPress category ID must be a positive integer.");
-        }
-        ArgumentNullException.ThrowIfNull(seoMeta);
-        ValidateSeoMeta(seoMeta);
-
         var endpoint = new Uri(
             _baseUri,
             $"wp-json/wp/v2/posts/{postId}?context=edit");
-        var payload = new WordPressPostRequest(
-            content,
-            title,
-            excerpt ?? string.Empty,
-            [categoryId],
-            seoMeta);
+        var payload = BuildDraftRequest(content, title, excerpt, categoryId, seoMeta);
+
+        return await SaveDraftAsync(
+            endpoint,
+            payload,
+            expectedPostId: postId,
+            operation: "update",
+            cancellationToken);
+    }
+
+    public async Task<WordPressPostResponse> CreateDraftAsync(
+        string content,
+        string title,
+        string? excerpt,
+        int categoryId,
+        WordPressSeoMeta seoMeta,
+        CancellationToken cancellationToken = default)
+    {
+        var endpoint = new Uri(_baseUri, "wp-json/wp/v2/posts?context=edit");
+        var payload = BuildDraftRequest(content, title, excerpt, categoryId, seoMeta);
+
+        return await SaveDraftAsync(
+            endpoint,
+            payload,
+            expectedPostId: null,
+            operation: "creation",
+            cancellationToken);
+    }
+
+    private async Task<WordPressPostResponse> SaveDraftAsync(
+        Uri endpoint,
+        WordPressPostRequest payload,
+        int? expectedPostId,
+        string operation,
+        CancellationToken cancellationToken)
+    {
         var jsonBytes = JsonSerializer.SerializeToUtf8Bytes(payload, JsonOptions);
 
         using var request = new HttpRequestMessage(HttpMethod.Post, endpoint);
@@ -117,7 +130,7 @@ public sealed class WordPressClient
         if (!response.IsSuccessStatusCode)
         {
             throw new HttpRequestException(
-                $"WordPress update failed with HTTP {(int)response.StatusCode} ({response.ReasonPhrase}). " +
+                $"WordPress post {operation} failed with HTTP {(int)response.StatusCode} ({response.ReasonPhrase}). " +
                 $"Response: {responseText}",
                 inner: null,
                 response.StatusCode);
@@ -141,17 +154,59 @@ public sealed class WordPressClient
                 "WordPress returned an empty post response.");
         }
 
-        VerifyUpdatedPost(post, payload, postId);
+        VerifySavedPost(post, payload, expectedPostId);
 
         return post;
     }
 
-    private static void VerifyUpdatedPost(
+    private static WordPressPostRequest BuildDraftRequest(
+        string content,
+        string title,
+        string? excerpt,
+        int categoryId,
+        WordPressSeoMeta seoMeta)
+    {
+        ArgumentNullException.ThrowIfNull(content);
+        if (string.IsNullOrWhiteSpace(title))
+        {
+            throw new ArgumentException(
+                "A non-blank title from Markdown front matter is required for publishing.",
+                nameof(title));
+        }
+        if (categoryId <= 0)
+        {
+            throw new ArgumentOutOfRangeException(
+                nameof(categoryId),
+                categoryId,
+                "The WordPress category ID must be a positive integer.");
+        }
+        ArgumentNullException.ThrowIfNull(seoMeta);
+        ValidateSeoMeta(seoMeta);
+
+        return new WordPressPostRequest(
+            content,
+            title,
+            excerpt ?? string.Empty,
+            [categoryId],
+            seoMeta);
+    }
+
+    private static void VerifySavedPost(
         WordPressPostResponse post,
         WordPressPostRequest expected,
-        int expectedPostId)
+        int? expectedPostId)
     {
-        VerifyEqual("post ID", expectedPostId, post.Id);
+        if (expectedPostId.HasValue)
+        {
+            VerifyEqual("post ID", expectedPostId.Value, post.Id);
+        }
+        else if (post.Id <= 0)
+        {
+            throw new InvalidOperationException(
+                $"WordPress verification failed for post ID: expected a positive newly created ID, " +
+                $"but received '{post.Id}'.");
+        }
+
         VerifyEqual("status", expected.Status, post.Status);
         VerifyEqual("title", expected.Title, post.Title?.Raw);
         VerifyEqual("excerpt", expected.Excerpt, post.Excerpt?.Raw);

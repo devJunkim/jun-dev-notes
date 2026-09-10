@@ -5,22 +5,30 @@ using JunDevNotes.Publisher.WordPress;
 var renderOnly = args.Length == 2 &&
     string.Equals(args[0], "--render-only", StringComparison.OrdinalIgnoreCase);
 
-if (!renderOnly && args.Length != 3)
+if (!renderOnly && args.Length is not (2 or 3))
 {
     Console.Error.WriteLine(
         "Usage:\n" +
         "  JunDevNotes.Publisher --render-only <markdown-path>\n" +
+        "  JunDevNotes.Publisher <markdown-path> <wordpress-base-url>\n" +
         "  JunDevNotes.Publisher <markdown-path> <post-id> <wordpress-base-url>");
     return 1;
 }
 
 var markdownPath = renderOnly ? args[1] : args[0];
-var postId = 0;
+var createsNewDraft = !renderOnly && args.Length == 2;
+var postId = (int?)null;
+var wordPressBaseUrl = renderOnly ? null : args[^1];
 
-if (!renderOnly && (!int.TryParse(args[1], out postId) || postId <= 0))
+if (!renderOnly && !createsNewDraft)
 {
-    Console.Error.WriteLine("Invalid post ID: provide a positive integer.");
-    return 1;
+    if (!int.TryParse(args[1], out var parsedPostId) || parsedPostId <= 0)
+    {
+        Console.Error.WriteLine("Invalid post ID: provide a positive integer.");
+        return 1;
+    }
+
+    postId = parsedPostId;
 }
 
 try
@@ -103,18 +111,26 @@ try
         markdown.Seo.SocialDescription!);
 
     using var httpClient = new HttpClient();
-    var wordPressClient = new WordPressClient(httpClient, args[2]);
+    var wordPressClient = new WordPressClient(httpClient, wordPressBaseUrl!);
     var categoryId = await wordPressClient.ResolveCategoryIdAsync(markdown.Category);
-    var post = await wordPressClient.UpdateDraftAsync(
-        postId,
-        result.Html,
-        markdown.Title,
-        markdown.Excerpt,
-        categoryId,
-        seoMeta);
+    var post = createsNewDraft
+        ? await wordPressClient.CreateDraftAsync(
+            result.Html,
+            markdown.Title,
+            markdown.Excerpt,
+            categoryId,
+            seoMeta)
+        : await wordPressClient.UpdateDraftAsync(
+            postId!.Value,
+            result.Html,
+            markdown.Title,
+            markdown.Excerpt,
+            categoryId,
+            seoMeta);
 
-    Console.WriteLine(
-        $"WordPress post {post.Id} updated and verified with draft status.");
+    Console.WriteLine(createsNewDraft
+        ? $"WordPress draft post {post.Id} created and verified."
+        : $"WordPress post {post.Id} updated and verified with draft status.");
     return 0;
 }
 catch (Exception exception)
