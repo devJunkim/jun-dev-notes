@@ -179,6 +179,7 @@ try
         markdown.Seo.SocialDescription!);
 
     using var httpClient = new HttpClient();
+    httpClient.DefaultRequestHeaders.UserAgent.ParseAdd("JunDevNotes-Publisher/1.0");
     var wordPressClient = new WordPressClient(httpClient, wordPressBaseUrl!);
     var categoryId = await wordPressClient.ResolveCategoryIdAsync(markdown.Category);
     var post = createsNewDraft
