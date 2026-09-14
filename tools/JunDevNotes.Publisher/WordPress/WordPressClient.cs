@@ -106,6 +106,77 @@ public sealed class WordPressClient
             cancellationToken);
     }
 
+    public async Task<bool> PublishExistingDraftAsync(
+        int postId,
+        CancellationToken cancellationToken = default)
+    {
+        if (postId <= 0)
+        {
+            throw new ArgumentOutOfRangeException(nameof(postId), postId,
+                "The WordPress post ID must be a positive integer.");
+        }
+
+        var endpoint = new Uri(_baseUri, $"wp-json/wp/v2/posts/{postId}?context=edit");
+        using var getRequest = new HttpRequestMessage(HttpMethod.Get, endpoint);
+        getRequest.Headers.Authorization = _authorization;
+        using var getResponse = await _httpClient.SendAsync(getRequest, cancellationToken);
+        if (!getResponse.IsSuccessStatusCode)
+        {
+            throw new HttpRequestException(
+                $"WordPress post lookup failed with HTTP {(int)getResponse.StatusCode} ({getResponse.ReasonPhrase}).",
+                inner: null,
+                getResponse.StatusCode);
+        }
+
+        var getText = StrictUtf8.GetString(
+            await getResponse.Content.ReadAsByteArrayAsync(cancellationToken));
+        var existing = JsonSerializer.Deserialize<WordPressPostResponse>(getText, JsonOptions)
+            ?? throw new InvalidOperationException("WordPress returned an empty post response.");
+        if (existing.Id != postId)
+        {
+            throw new InvalidOperationException(
+                $"WordPress post lookup returned ID {existing.Id} instead of {postId}.");
+        }
+
+        if (string.Equals(existing.Status, "publish", StringComparison.Ordinal))
+        {
+            return true;
+        }
+
+        if (!string.Equals(existing.Status, "draft", StringComparison.Ordinal))
+        {
+            throw new InvalidOperationException(
+                $"WordPress post {postId} has status '{existing.Status ?? "<missing>"}', not 'draft'.");
+        }
+
+        using var postRequest = new HttpRequestMessage(HttpMethod.Post, endpoint);
+        postRequest.Headers.Authorization = _authorization;
+        postRequest.Content = new StringContent(
+            "{\"status\":\"publish\"}", Encoding.UTF8, "application/json");
+        using var postResponse = await _httpClient.SendAsync(postRequest, cancellationToken);
+        if (!postResponse.IsSuccessStatusCode)
+        {
+            throw new HttpRequestException(
+                $"WordPress post publish failed with HTTP {(int)postResponse.StatusCode} ({postResponse.ReasonPhrase}).",
+                inner: null,
+                postResponse.StatusCode);
+        }
+
+        var postText = StrictUtf8.GetString(
+            await postResponse.Content.ReadAsByteArrayAsync(cancellationToken));
+        var published = JsonSerializer.Deserialize<WordPressPostResponse>(postText, JsonOptions)
+            ?? throw new InvalidOperationException("WordPress returned an empty publish response.");
+        if (published.Id != postId ||
+            !string.Equals(published.Status, "publish", StringComparison.Ordinal))
+        {
+            throw new InvalidOperationException(
+                $"WordPress publish verification failed for post {postId}: " +
+                $"returned ID {published.Id} with status '{published.Status ?? "<missing>"}'.");
+        }
+
+        return false;
+    }
+
     private async Task<WordPressPostResponse> SaveDraftAsync(
         Uri endpoint,
         WordPressPostRequest payload,

@@ -6,17 +6,20 @@ var renderOnlyRequested = args.Length > 0 &&
     string.Equals(args[0], "--render-only", StringComparison.OrdinalIgnoreCase);
 var newArticleRequested = args.Length > 0 &&
     string.Equals(args[0], "--new", StringComparison.OrdinalIgnoreCase);
+var publishRequested = args.Length > 0 &&
+    string.Equals(args[0], "--publish", StringComparison.OrdinalIgnoreCase);
 var renderOnly = renderOnlyRequested && args.Length == 2;
 var newArticle = newArticleRequested && args.Length == 2;
 
 if ((renderOnlyRequested && !renderOnly) ||
     (newArticleRequested && !newArticle) ||
-    (!renderOnlyRequested && !newArticleRequested && args.Length is not (2 or 3)))
+    (!renderOnlyRequested && !newArticleRequested && !publishRequested && args.Length is not (2 or 3)))
 {
     Console.Error.WriteLine(
         "Usage:\n" +
         "  JunDevNotes.Publisher --new <markdown-path>\n" +
         "  JunDevNotes.Publisher --render-only <markdown-path>\n" +
+        "  JunDevNotes.Publisher --publish <post-id> [<post-id> ...] <wordpress-base-url>\n" +
         "  JunDevNotes.Publisher <markdown-path> <wordpress-base-url>\n" +
         "  JunDevNotes.Publisher <markdown-path> <post-id> <wordpress-base-url>");
     return 1;
@@ -79,6 +82,65 @@ if (newArticle)
     catch (Exception exception)
     {
         Console.Error.WriteLine($"Could not create article: {exception.Message}");
+        return 1;
+    }
+}
+
+if (publishRequested)
+{
+    if (args.Length < 3)
+    {
+        Console.Error.WriteLine("Publish requires at least one post ID and a WordPress base URL.");
+        return 1;
+    }
+
+    var publishIds = new List<int>();
+    foreach (var value in args[1..^1])
+    {
+        if (!int.TryParse(value, out var id) || id <= 0)
+        {
+            Console.Error.WriteLine("Invalid post ID: provide positive integers.");
+            return 1;
+        }
+
+        publishIds.Add(id);
+    }
+
+    if (!Uri.TryCreate(args[^1], UriKind.Absolute, out var publishBaseUri) ||
+        (publishBaseUri.Scheme != Uri.UriSchemeHttps &&
+         publishBaseUri.Scheme != Uri.UriSchemeHttp))
+    {
+        Console.Error.WriteLine("Invalid WordPress base URL: provide an absolute HTTP or HTTPS URL.");
+        return 1;
+    }
+
+    try
+    {
+        using var httpClient = CreateWordPressHttpClient();
+        var wordPressClient = new WordPressClient(httpClient, args[^1]);
+        var failed = false;
+
+        foreach (var id in publishIds)
+        {
+            try
+            {
+                var alreadyPublished = await wordPressClient.PublishExistingDraftAsync(id);
+                Console.WriteLine(alreadyPublished
+                    ? $"WordPress post {id} is already published."
+                    : $"WordPress post {id} published and verified.");
+            }
+            catch (Exception exception)
+            {
+                Console.Error.WriteLine($"WordPress post {id} was not published: {exception.Message}");
+                failed = true;
+            }
+        }
+
+        return failed ? 1 : 0;
+    }
+    catch (Exception exception)
+    {
+        Console.Error.WriteLine($"Publisher failed: {exception.Message}");
         return 1;
     }
 }
@@ -178,8 +240,7 @@ try
         markdown.Seo.SocialTitle!,
         markdown.Seo.SocialDescription!);
 
-    using var httpClient = new HttpClient();
-    httpClient.DefaultRequestHeaders.UserAgent.ParseAdd("JunDevNotes-Publisher/1.0");
+    using var httpClient = CreateWordPressHttpClient();
     var wordPressClient = new WordPressClient(httpClient, wordPressBaseUrl!);
     var categoryId = await wordPressClient.ResolveCategoryIdAsync(markdown.Category);
     var post = createsNewDraft
@@ -206,4 +267,11 @@ catch (Exception exception)
 {
     Console.Error.WriteLine($"Publisher failed: {exception.Message}");
     return 1;
+}
+
+static HttpClient CreateWordPressHttpClient()
+{
+    var httpClient = new HttpClient();
+    httpClient.DefaultRequestHeaders.UserAgent.ParseAdd("JunDevNotes-Publisher/1.0");
+    return httpClient;
 }

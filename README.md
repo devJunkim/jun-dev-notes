@@ -140,8 +140,22 @@ Both commands:
 - Never automatically publishes a post.
 - Never creates categories automatically.
 
-Review the resulting draft in WordPress and publish it manually when it is
-ready.
+Review the resulting draft in WordPress before publishing it.
+
+### Publishing existing drafts explicitly
+
+Publish one or more reviewed drafts by supplying their WordPress post IDs:
+
+```powershell
+dotnet run --project tools/JunDevNotes.Publisher -- --publish 107 108 109 https://dev.jun-kim.net
+```
+
+The `--publish` command checks each post's current status before changing it.
+It sends only `{"status":"publish"}` for a draft and verifies the returned ID
+and status. An already-published post is reported without an update. Other
+statuses and failed requests are reported per post; processing continues for
+the remaining IDs, and the command exits with a failure code if any ID failed.
+Normal article creation and update commands continue to force `draft`.
 
 ### SiteSEO metadata
 
