@@ -4,23 +4,37 @@
 
 This repository contains source articles for [Jun's Dev Notes](https://dev.jun-kim.net/) and the .NET publisher that converts them to native Gutenberg blocks. The blog serves primarily intermediate and senior software developers with practical, production-oriented guidance rather than tutorial filler.
 
-The main categories are `C#`, `.NET`, `Architecture`, `Angular`, `Cloud`, and `AI`. Store article Markdown in the matching directory under `posts/`. Keep publishing code under `tools/`.
+The current primary categories include `C#`, `.NET`, `Architecture`, `Angular`, `Cloud`, and `AI`; this is not a permanently fixed list. Store article Markdown in the matching directory under `posts/`. Keep publishing code under `tools/`.
 
 These instructions apply repository-wide. A task to write or edit local content does not authorize WordPress operations, Git commits, pushes, or changes to repository tooling.
 
+## Categories and new categories
+
+Use the categories specified by the user. Agents must not invent a new category merely to classify an article differently.
+
+If the user specifies a category that does not currently exist, treat it as an intentional proposed category. Preserve it rather than moving the article into an existing category solely because the requested category is absent. Create and validate the local article with the requested category when it is compatible with repository conventions, and clearly report that the category is new.
+
+Do not create a WordPress category automatically. Before creating a WordPress draft, verify that its requested category exists in WordPress. If it does not exist, stop and report that the category must be created or that the user must explicitly authorize its creation. Creating the local article does not provide that authorization.
+
+If the user explicitly asks the agent to propose or create new categories, the agent may recommend appropriate names. Any WordPress category creation remains a separate external change requiring explicit authorization.
+
 ## Start with existing content
 
-Before proposing or writing an article:
+The user's request controls the article count, topics, and represented categories. If the user supplies one, three, five, or six topics, create exactly one, three, five, or six articles respectively. Do not add articles to reach a customary batch size or add missing categories to balance a batch. If the user requests multiple articles in the same category or omits one or more main categories, preserve that distribution.
+
+Treat explicit user-supplied topics as the editorial assignment. Do not replace one with an agent-selected subject merely because another topic seems preferable. Preserve a category specified with a topic unless a genuine repository compatibility problem prevents it; explain that problem instead of silently reclassifying the article. The agent may select topics only when the user explicitly asks it to do so.
+
+Before proposing or writing the requested articles:
 
 - Inspect the relevant existing articles, including the most recent batches and adjacent categories.
-- Check the proposed subject for substantial duplication in title, examples, and explanatory scope.
-- If overlap exists, narrow or differentiate the angle while preserving the requested subject. Report that decision.
+- Check each requested topic for substantial duplication in title, examples, and explanatory scope.
+- If overlap exists, preserve the intended subject where practical, narrow or differentiate the angle, and report how the overlap was handled. Do not silently substitute an unrelated topic.
 - Link to an existing article when it already explains prerequisite material; do not repeat large prerequisite sections.
 - Treat existing articles and `README.md` as the source of truth for format, tone, depth, and workflow. Do not introduce a new article template unless explicitly requested.
 
 ## Article format
 
-New publishable articles must use this exact front-matter shape with nonblank values and the exact WordPress category name:
+New publishable articles must use this exact front-matter shape with nonblank values and the exact requested category name. Before WordPress draft creation, that value must exactly match an existing WordPress category unless category creation was separately authorized:
 
 ```yaml
 ---
@@ -87,7 +101,7 @@ Local creation and validation do not authorize a WordPress request.
 - Create or update a WordPress draft only when the user explicitly requests it. Use `JunDevNotes.Publisher`; normal create/update commands force and verify `draft` status.
 - Publishing requires a separate, explicit user instruction. Use only the publisher's `--publish <post-id> ... <wordpress-base-url>` workflow and verify returned IDs and statuses. Never publish because validation passed or because a draft was created.
 - Never modify an already-published article locally or in WordPress unless explicitly requested. A correction request should identify the affected local file and WordPress post before updating it.
-- Resolve categories by their exact existing names. Do not create categories automatically.
+- Resolve categories by their exact existing names before creating a draft. If a requested category is absent, stop; create it only with explicit authorization, then verify the exact name before continuing.
 - Never expose or commit `WP_USERNAME`, `WP_APP_PASSWORD`, application passwords, tokens, or other secrets.
 
 Read `README.md` before any WordPress operation for the current command syntax and verification behavior. Do not use the legacy PowerShell publisher when the documented `JunDevNotes.Publisher` workflow covers the task.
@@ -107,10 +121,11 @@ Read `README.md` before any WordPress operation for the current command syntax a
 Use this sequence unless the user explicitly changes it:
 
 ```text
-Inspect existing content
--> check proposed topics for overlap
--> write articles
--> add useful verified internal links
+Read the user's requested topics
+-> inspect existing content
+-> check requested topics for overlap
+-> write exactly the requested articles
+-> add appropriate verified internal links
 -> perform a separate self-review
 -> fix meaningful findings
 -> validate metadata, Markdown, and examples
