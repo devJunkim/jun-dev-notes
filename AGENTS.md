@@ -6,7 +6,7 @@ This repository contains source articles for [Jun's Dev Notes](https://dev.jun-k
 
 The current primary categories include `C#`, `.NET`, `Architecture`, `Angular`, `Cloud`, and `AI`; this is not a permanently fixed list. Store article Markdown in the matching directory under `posts/`. Keep publishing code under `tools/`.
 
-These instructions apply repository-wide. A task to write or edit local content does not authorize WordPress operations, Git commits, pushes, or changes to repository tooling.
+These instructions apply repository-wide. The standard article workflow has two user-controlled stages: a request to create an article or batch authorizes preparation through verified WordPress draft creation, while a subsequent explicit approval to publish that prepared batch authorizes publication plus the corresponding Git commit and push. Other requests to write or edit local content do not authorize WordPress operations, Git commits, pushes, or changes to repository tooling.
 
 ## Categories and new categories
 
@@ -96,9 +96,9 @@ Do not change an article merely to satisfy an unrelated formatter or to create v
 
 ## WordPress safety
 
-Local creation and validation do not authorize a WordPress request.
+For the standard article workflow, a request to create an article or batch authorizes WordPress draft creation after review and validation. It never authorizes publication. Outside that workflow, local creation or validation alone does not authorize a WordPress request.
 
-- Create or update a WordPress draft only when the user explicitly requests it. Use `JunDevNotes.Publisher`; normal create/update commands force and verify `draft` status.
+- Create WordPress drafts for newly prepared articles as part of Stage 1 unless the user explicitly requests an earlier stopping point. Update an existing WordPress draft only when the user explicitly requests that update. Use `JunDevNotes.Publisher`; normal create/update commands force and verify `draft` status.
 - Publishing requires a separate, explicit user instruction. Use only the publisher's `--publish <post-id> ... <wordpress-base-url>` workflow and verify returned IDs and statuses. Never publish because validation passed or because a draft was created.
 - Never modify an already-published article locally or in WordPress unless explicitly requested. A correction request should identify the affected local file and WordPress post before updating it.
 - Resolve categories by their exact existing names before creating a draft. If a requested category is absent, stop; create it only with explicit authorization, then verify the exact name before continuing.
@@ -108,7 +108,7 @@ Read `README.md` before any WordPress operation for the current command syntax a
 
 ## Git and repository safety
 
-- Do not commit or push unless explicitly requested.
+- Do not commit or push unless explicitly requested, except that explicit approval to publish the currently prepared batch also authorizes committing and pushing the corresponding approved repository changes under Stage 2.
 - Before editing, inspect Git status and preserve all pre-existing changes.
 - Stage only explicit task paths; do not use `git add .` or another broad staging command.
 - Before committing, verify the staged file allowlist and run `git diff --cached --check`.
@@ -116,23 +116,41 @@ Read `README.md` before any WordPress operation for the current command syntax a
 - Push only when explicitly requested, using the current branch's established upstream unless the user specifies otherwise. Verify the final tracking and working-tree status.
 - Do not modify `tools/JunDevNotes.Publisher`, `README.md`, configuration, existing published articles, or unrelated files unless the task specifically requires that change. Preserve existing working behavior.
 
-## Standard article-batch workflow
+## Standard two-stage article workflow
 
-Use this sequence unless the user explicitly changes it:
+Use these stages unless the user explicitly changes a stopping point or requested action.
 
-```text
-Read the user's requested topics
--> inspect existing content
--> check requested topics for overlap
--> write exactly the requested articles
--> add appropriate verified internal links
--> perform a separate self-review
--> fix meaningful findings
--> validate metadata, Markdown, and examples
--> run publisher render-only for every article
--> inspect Git diff and status
--> report results and limitations
--> STOP
-```
+### Stage 1: Create and prepare a batch
 
-WordPress draft creation, publishing, committing, and pushing are separate actions. Each requires explicit instructions; authorization for one does not imply authorization for the next.
+When the user asks to create an article or batch, perform the complete pre-publication workflow in one task:
+
+1. Determine topics according to the user's request. Use supplied topics exactly. Select topics only when the user explicitly asks the agent to choose them, after inspecting existing content for appropriate non-duplicative subjects. Create exactly the requested number of articles.
+2. Inspect existing articles for duplication and useful internal-link opportunities.
+3. Create the requested Markdown articles using all established Jun's Dev Notes conventions.
+4. Perform the required separate technical and editorial self-review.
+5. Fix meaningful findings.
+6. Perform all required validation, including UTF-8, front matter, SEO metadata, Markdown, internal links, publisher render-only validation, practical C#/.NET compilation or execution, practical Angular type-checking or compilation, and other appropriate technical checks.
+7. Remove all temporary validation artifacts.
+8. Inspect the relevant diff and Git status, and ensure only intended article or repository changes remain. Preserve and report unrelated changes separately.
+9. Read `README.md`, verify that every requested category exists in WordPress, and create WordPress drafts for the completed articles using `JunDevNotes.Publisher`. If a category is absent, follow the category safety rules above and stop rather than creating it without authorization.
+10. Verify each created draft's title, post ID, category, draft status, and permalink or preview URL when available.
+11. Report results and limitations, then stop so the user can visually inspect the drafts.
+
+Stage 1 never authorizes publishing, committing, or pushing. Do not require a separate request for validation or WordPress draft creation when the standard Stage 1 instructions apply.
+
+### Stage 2: Approve and publish the prepared batch
+
+When the user subsequently says "Publish this batch" or gives equivalent explicit approval to publish the currently prepared batch:
+
+1. Identify the exact WordPress drafts belonging to that prepared batch. Never include unrelated drafts.
+2. Publish those exact drafts using the established `JunDevNotes.Publisher` workflow.
+3. Verify that every intended post is published and record its final public permalink.
+4. If any publication fails, do not blindly continue to Git commit or push. Report the failure and preserve recoverability.
+5. Stage only the corresponding approved local article files and any explicitly approved repository changes belonging to the batch. Never use `git add .` or another broad staging command, and report unrelated modifications separately.
+6. Verify the staged allowlist and run `git diff --cached --check`.
+7. Commit the batch with an appropriate descriptive message.
+8. Push to the current branch's established upstream unless the user specifies otherwise.
+9. Verify publication statuses, public URLs, the commit hash, the push result, and final Git status.
+10. Report the completed batch, then stop.
+
+Actual WordPress publication always requires explicit Stage 2 approval. A Stage 1 creation request never implies that approval. Explicit user instructions override the default stage actions and stopping points.
