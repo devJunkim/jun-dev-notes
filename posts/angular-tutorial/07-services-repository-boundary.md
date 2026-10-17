@@ -20,6 +20,30 @@ ChurchServe's schedule pages currently depend on `ServiceEventStore`, a concrete
 
 This part is an architectural refactoring, so the visible UI does not change. The important dependency changes from this:
 
+Add these files to the existing schedule feature:
+
+```text
+src/app/
+  app.config.ts
+  app.routes.spec.ts
+  features/
+    schedule/
+      in-memory-service-event-repository.spec.ts
+      in-memory-service-event-repository.ts
+      service-event-repository.ts
+      schedule.spec.ts
+      schedule.ts
+      service-event-create/
+        service-event-create.spec.ts
+        service-event-create.ts
+      service-event-detail/
+        service-event-detail.ts
+```
+
+`service-event-repository.ts` and the two in-memory repository files are new. The schedule, create page, detail page, route tests, and `app.config.ts` change to depend on that boundary. Remove the Part 6 `service-event-store.ts` and `service-event-store.spec.ts` files after their behavior has moved into the new implementation and tests. `ChurchServe.slnx` and `README.md` also change to reflect the Part 7 structure.
+
+The resulting dependency changes from this:
+
 ```text
 Schedule component -> ServiceEventStore
 ```
