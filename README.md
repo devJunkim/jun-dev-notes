@@ -82,7 +82,8 @@ handled by WordPress and the site's CSS.
   SiteSEO fields to their REST metadata keys.
 
 The renderer supports paragraphs, H1-H3 headings, fenced code blocks, ordered
-and unordered lists, blockquotes, tables, and thematic breaks. H1 is omitted
+and unordered lists, blockquotes, tables, thematic breaks, and standalone
+Markdown images. H1 is omitted
 from rendered content because WordPress displays the post title separately.
 Unsupported Markdown block types fail instead of being emitted as unverified
 freeform HTML.
