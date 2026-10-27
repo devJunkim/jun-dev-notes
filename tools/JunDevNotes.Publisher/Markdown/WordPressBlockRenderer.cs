@@ -112,6 +112,13 @@ public sealed class WordPressBlockRenderer
 
     private void RenderParagraph(ParagraphBlock paragraph)
     {
+        if (paragraph.Inline?.FirstChild is LinkInline { IsImage: true } image
+            && image.NextSibling is null)
+        {
+            RenderImage(image);
+            return;
+        }
+
         _html.AppendLine("<!-- wp:paragraph -->");
         _html.Append("<p>");
         RenderInlines(paragraph.Inline);
@@ -197,7 +204,8 @@ public sealed class WordPressBlockRenderer
             ?? string.Empty;
         var safeLanguage = Regex.Replace(markdownLanguage, "[^a-z0-9_+-]", "-");
         var pluginLanguage = safeLanguage == "csharp" ? "cs" : safeLanguage;
-        var languageClass = string.IsNullOrEmpty(safeLanguage)
+        var isPlainText = safeLanguage is "text" or "plaintext";
+        var languageClass = string.IsNullOrEmpty(safeLanguage) || isPlainText
             ? null
             : $"language-{safeLanguage}";
 
@@ -316,6 +324,9 @@ public sealed class WordPressBlockRenderer
             case LinkInline link when !link.IsImage:
                 RenderLink(link);
                 break;
+            case LinkInline { IsImage: true }:
+                throw new NotSupportedException(
+                    "Markdown images must be the only content in their paragraph.");
             case LineBreakInline lineBreak:
                 _html.Append(lineBreak.IsHard ? "<br>" : "\n");
                 break;
@@ -351,6 +362,51 @@ public sealed class WordPressBlockRenderer
         _html.Append('>');
         RenderInlines(link);
         _html.Append("</a>");
+    }
+
+    private void RenderImage(LinkInline image)
+    {
+        var url = image.GetDynamicUrl is null
+            ? image.Url
+            : image.GetDynamicUrl() ?? image.Url;
+        var altText = GetInlinePlainText(image);
+
+        _html.AppendLine("<!-- wp:image {\"sizeSlug\":\"large\",\"linkDestination\":\"none\"} -->");
+        _html.Append("<figure class=\"wp-block-image size-large\"><img src=\"")
+            .Append(WebUtility.HtmlEncode(url ?? string.Empty))
+            .Append("\" alt=\"")
+            .Append(WebUtility.HtmlEncode(altText))
+            .AppendLine("\"/></figure>");
+        _html.AppendLine("<!-- /wp:image -->");
+    }
+
+    private static string GetInlinePlainText(ContainerInline container)
+    {
+        var text = new StringBuilder();
+        AppendInlinePlainText(container, text);
+        return text.ToString();
+    }
+
+    private static void AppendInlinePlainText(ContainerInline container, StringBuilder text)
+    {
+        for (var inline = container.FirstChild; inline is not null; inline = inline.NextSibling)
+        {
+            switch (inline)
+            {
+                case LiteralInline literal:
+                    text.Append(literal.Content.ToString());
+                    break;
+                case CodeInline code:
+                    text.Append(code.Content);
+                    break;
+                case LineBreakInline:
+                    text.Append(' ');
+                    break;
+                case ContainerInline nested:
+                    AppendInlinePlainText(nested, text);
+                    break;
+            }
+        }
     }
 
     private static void VerifyBalancedLists(string html)
