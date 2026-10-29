@@ -203,7 +203,12 @@ public sealed class WordPressBlockRenderer
         var markdownLanguage = codeBlock.Info?.ToString()?.Trim().ToLowerInvariant()
             ?? string.Empty;
         var safeLanguage = Regex.Replace(markdownLanguage, "[^a-z0-9_+-]", "-");
-        var pluginLanguage = safeLanguage == "csharp" ? "cs" : safeLanguage;
+        var pluginLanguage = safeLanguage switch
+        {
+            "csharp" => "cs",
+            "tsx" => "ts",
+            _ => safeLanguage,
+        };
         var isPlainText = safeLanguage is "text" or "plaintext";
         var languageClass = string.IsNullOrEmpty(safeLanguage) || isPlainText
             ? null
